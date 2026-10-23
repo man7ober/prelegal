@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Mutual Non-Disclosure Agreement — Cover Page",
+    "description": "Cover page for the Common Paper Mutual Non-Disclosure Agreement; used together with its standard terms.",
+    "filename": "Mutual-NDA-coverpage.md",
+    "source": "https://github.com/CommonPaper/Mutual-NDA/blob/main/Mutual-NDA-coverpage.md"
+  },
+  {
+    "name": "Mutual Non-Disclosure Agreement — Standard Terms",
+    "description": "Standard terms for the Common Paper Mutual Non-Disclosure Agreement; used together with its cover page.",
+    "filename": "Mutual-NDA.md",
+    "source": "https://github.com/CommonPaper/Mutual-NDA/blob/main/Mutual-NDA.md"
+  },
+  {
+    "name": "Cloud Service Agreement",
+    "description": "Standard terms for a cloud software and SaaS services agreement.",
+    "filename": "CSA.md",
+    "source": "https://github.com/CommonPaper/CSA/blob/main/CSA.md"
+  },
+  {
+    "name": "Service Level Agreement",
+    "description": "Service-level terms designed to be used with the Common Paper Cloud Service Agreement.",
+    "filename": "sla.md",
+    "source": "https://github.com/CommonPaper/SLA/blob/main/sla.md"
+  },
+  {
+    "name": "Data Processing Agreement",
+    "description": "Terms governing the processing of personal data in connection with services.",
+    "filename": "DPA.md",
+    "source": "https://github.com/CommonPaper/DPA/blob/main/DPA.md"
+  },
+  {
+    "name": "Design Partner Agreement",
+    "description": "Agreement for an early product design-partner relationship.",
+    "filename": "design-partner-agreement.md",
+    "source": "https://github.com/CommonPaper/Design-Partner-Agreement/blob/main/design-partner-agreement.md"
+  },
+  {
+    "name": "Professional Services Agreement",
+    "description": "Standard terms for professional services, typically used with statements of work.",
+    "filename": "psa.md",
+    "source": "https://github.com/CommonPaper/PSA/blob/main/psa.md"
+  },
+  {
+    "name": "Partnership Agreement",
+    "description": "Standard terms for a commercial partnership between the parties.",
+    "filename": "Partnership-Agreement.md",
+    "source": "https://github.com/CommonPaper/Partnership-Agreement/blob/main/Partnership-Agreement.md"
+  },
+  {
+    "name": "Business Associate Agreement",
+    "description": "Terms for handling protected health information in a business associate relationship.",
+    "filename": "BAA.md",
+    "source": "https://github.com/CommonPaper/BAA/blob/main/BAA.md"
+  },
+  {
+    "name": "Software License Agreement",
+    "description": "Standard terms for licensing software and related services.",
+    "filename": "Software-License-Agreement.md",
+    "source": "https://github.com/CommonPaper/Software-License-Agreement/blob/main/Software-License-Agreement.md"
+  },
+  {
+    "name": "Pilot Agreement",
+    "description": "Agreement for a limited-term pilot or evaluation of a product or service.",
+    "filename": "Pilot-Agreement.md",
+    "source": "https://github.com/CommonPaper/Pilot-Agreement/blob/main/Pilot-Agreement.md"
+  },
+  {
+    "name": "AI Addendum",
+    "description": "Addendum with terms applicable to AI services, used to supplement an underlying agreement.",
+    "filename": "AI-Addendum.md",
+    "source": "https://github.com/CommonPaper/AI-Addendum/blob/main/AI-Addendum.md"
+  }
+]
