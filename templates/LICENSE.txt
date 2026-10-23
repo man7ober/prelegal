@@ -1,0 +1,8 @@
+License and attribution
+=======================
+
+The Common Paper agreement documents in this directory are made available by Common Paper under the Creative Commons Attribution 4.0 International license (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+
+Attribution: Common Paper, https://commonpaper.com/ . Original source repositories and document links are listed in the project-root catalog.json. The agreement Markdown files were copied from those repositories without changes.
+
+This notice applies to the Common Paper agreement documents only.
