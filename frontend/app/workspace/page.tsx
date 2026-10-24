@@ -1,318 +1,241 @@
 'use client';
 
-import {useState} from 'react';
-import {
-	Check,
-	Download,
-	FileText,
-	LockKeyhole,
-} from 'lucide-react';
-import {downloadAgreementPdf} from '@/lib/pdf';
-import {
-	formatDate,
-	getAgreementSections,
-	initialDraft,
-	requiredFields,
-	type NdaDraft,
-} from '@/lib/nda';
+import {type FormEvent, useEffect, useRef, useState} from 'react';
+import {Download, FileText, Send} from 'lucide-react';
+import Link from 'next/link';
+import {downloadDocumentPdf} from '@/lib/pdf';
 
-function Field({
-	label,
-	value,
-	onChange,
-	placeholder,
-	type = 'text',
-	hint,
-}: {
-	label: string;
-	value: string;
-	onChange: (value: string) => void;
-	placeholder?: string;
-	type?: string;
-	hint?: string;
-}) {
-	return (
-		<label className='field'>
-			<span className='field-label'>{label}</span>
-			<input
-				type={type}
-				value={value}
-				placeholder={placeholder}
-				onChange={(event) => onChange(event.target.value)}
-			/>
-			{hint && <span className='field-hint'>{hint}</span>}
-		</label>
-	);
-}
+type DocumentInfo = {
+	id: string;
+	title: string;
+	description: string;
+	missing_companions: string[];
+};
+
+type ChatMessage = {role: 'user' | 'assistant'; content: string};
+
+type RenderedDocument = {
+	title: string;
+	html: string;
+	text: string;
+	missing_required: string[];
+	missing_variables: string[];
+	missing_companions: string[];
+};
 
 export default function Workspace() {
-	const [draft, setDraft] = useState<NdaDraft>(initialDraft);
-	const [downloading, setDownloading] = useState(false);
-	const [downloadError, setDownloadError] = useState('');
-	const missing = requiredFields.filter((field) => !draft[field].trim());
-	const update = (field: keyof NdaDraft, value: string) =>
-		setDraft((current) => ({...current, [field]: value}));
+	const [catalog, setCatalog] = useState<DocumentInfo[]>([]);
+	const [messages, setMessages] = useState<ChatMessage[]>([
+		{
+			role: 'assistant',
+			content:
+				'What agreement are you looking to create? Describe it in your own words, or choose one of the supported templates below.',
+		},
+	]);
+	const [message, setMessage] = useState('');
+	const [documentId, setDocumentId] = useState('');
+	const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+	const [suggestion, setSuggestion] = useState('');
+	const [consent, setConsent] = useState(false);
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState('');
+	const [rendered, setRendered] = useState<RenderedDocument | null>(null);
+	const messageList = useRef<HTMLDivElement>(null);
 
-	async function download() {
-		if (missing.length) {
-			setDownloadError(
-				'Add both party names and a purpose before downloading.',
-			);
-			return;
-		}
-		setDownloading(true);
-		setDownloadError('');
+	useEffect(() => {
+		fetch('/api/documents')
+			.then(async (response) => {
+				if (!response.ok) throw new Error('The template catalog could not be loaded.');
+				return (await response.json()) as DocumentInfo[];
+			})
+			.then(setCatalog)
+			.catch(() => setError('The template catalog could not be loaded. Please refresh the page.'));
+	}, []);
+
+	useEffect(() => {
+		messageList.current?.scrollTo({top: messageList.current.scrollHeight, behavior: 'smooth'});
+	}, [messages]);
+
+	const selectedDocument = catalog.find((document) => document.id === documentId);
+
+	async function sendMessage(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		const content = message.trim();
+		if (!content || !consent || busy) return;
+
+		const nextMessages: ChatMessage[] = [...messages, {role: 'user', content}];
+		setMessages(nextMessages);
+		setMessage('');
+		setSuggestion('');
+		setError('');
+		setBusy(true);
 		try {
-			await downloadAgreementPdf(draft);
-		} catch {
-			setDownloadError('The PDF could not be created. Please try again.');
+			const response = await fetch('/api/chat', {
+				method: 'POST',
+				headers: {'Content-Type': 'application/json'},
+				body: JSON.stringify({
+					messages: nextMessages.slice(-16),
+					document_id: documentId || null,
+					field_values: fieldValues,
+					consent: true,
+				}),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.detail || 'The assistant could not respond.');
+			if (result.document_id) setDocumentId(result.document_id);
+			setFieldValues(result.field_values || {});
+			setSuggestion(result.suggested_document_id || '');
+			setMessages((current) => [
+				...current,
+				{role: 'assistant', content: result.message},
+			]);
+		} catch (requestError) {
+			setError(requestError instanceof Error ? requestError.message : 'The assistant could not respond.');
+		}
+		setBusy(false);
+	}
+
+	async function reviewDocument() {
+		if (!documentId) return;
+		setBusy(true);
+		setError('');
+		try {
+			const response = await fetch(`/api/documents/${documentId}/render`, {
+				method: 'POST',
+				headers: {'Content-Type': 'application/json'},
+				body: JSON.stringify({field_values: fieldValues}),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.detail || 'The document could not be rendered.');
+			setRendered(result as RenderedDocument);
+		} catch (requestError) {
+			setError(requestError instanceof Error ? requestError.message : 'The document could not be rendered.');
 		} finally {
-			setDownloading(false);
+			setBusy(false);
 		}
 	}
 
 	return (
-		<main className='app-shell'>
+		<main className='app-shell guided-shell'>
 			<header className='topbar'>
-				<a
-					className='brand'
-					href='#top'
-					aria-label='Prelegal home'>
-					<span className='brand-mark'>
-						<FileText size={17} />
-					</span>
-					<span>
-						prelegal<span className='brand-period'>.</span>
-					</span>
-				</a>
-				<div className='topbar-right'>
-					<span className='secure-label'>
-						<LockKeyhole size={13} /> Your details stay on this device
-					</span>
-					<span className='topbar-divider' />
-					<span className='product-label'>
-						AGREEMENT STUDIO <span>01 / 03</span>
-					</span>
-				</div>
+				<Link className='brand' href='/' aria-label='Prelegal home'>
+					<span className='brand-mark'><FileText size={17} /></span>
+					<span>prelegal<span className='brand-period'>.</span></span>
+				</Link>
+				<span className='guided-label'>AGREEMENT STUDIO</span>
 			</header>
 
-			<section
-				className='intro'
-				id='top'>
-				<div className='eyebrow'>
-					<span className='eyebrow-line' /> A BETTER WAY TO GET STARTED
-				</div>
+			<section className='guided-intro'>
+				<span className='section-kicker'>GUIDED DOCUMENT DRAFTING</span>
+				<h1>Let’s find the right agreement.</h1>
+				<p>Share what you need. The assistant will help collect details and prepare a draft from the selected template.</p>
 			</section>
 
-			<div className='workspace'>
-				<section
-					className='form-panel'
-					aria-labelledby='details-title'>
-					<div className='panel-heading'>
+			<div className='guided-layout'>
+				<section className='chat-panel' aria-label='Agreement drafting conversation'>
+					<div className='chat-heading'>
 						<div>
-							<span className='section-kicker'>01 — THE DETAILS</span>
-							<h1 id='details-title'>Set the scene</h1>
-							<p>A few details make this agreement yours.</p>
+							<span className='section-kicker'>YOUR ASSISTANT</span>
+							<h2>What are you working on?</h2>
 						</div>
-						<span className='required-note'>
-							<span>*</span> Required
-						</span>
+						{selectedDocument && <span className='selected-type'>{selectedDocument.title}</span>}
 					</div>
 
-					<div className='form-section'>
-						<div className='form-section-title'>
-							<span className='section-number'>A</span>
-							<div>
-								<h2>First party</h2>
-								<p>The person or organization sharing information.</p>
+					<div className='chat-messages' ref={messageList} aria-live='polite'>
+						{messages.map((item, index) => (
+							<div className={`chat-message ${item.role}`} key={`${item.role}-${index}`}>
+								<span>{item.role === 'assistant' ? 'PRELEGAL' : 'YOU'}</span>
+								<p>{item.content}</p>
 							</div>
+						))}
+						{busy && <p className='chat-loading' role='status'>Preparing your response…</p>}
+					</div>
+
+					{suggestion && (
+						<div className='suggestion-card'>
+							<p>This request is outside the supported templates. The closest available option is:</p>
+							<button type='button' onClick={() => {
+								const suggested = catalog.find((item) => item.id === suggestion);
+								if (suggested) {
+								setDocumentId(suggested.id);
+								setMessage(`I would like to create a ${suggested.title}.`);
+							}
+							}}>
+								{catalog.find((item) => item.id === suggestion)?.title || 'Suggested agreement'}
+							</button>
 						</div>
-						<Field
-							label='First party legal name *'
-							value={draft.partyAName}
-							placeholder='e.g. Acme, Inc.'
-							onChange={(value) => update('partyAName', value)}
-						/>
-						<Field
-							label='First party business address'
-							value={draft.partyAAddress}
-							placeholder='Street, city, state, ZIP'
-							onChange={(value) => update('partyAAddress', value)}
-						/>
-					</div>
-
-					<div className='form-section'>
-						<div className='form-section-title'>
-							<span className='section-number'>B</span>
-							<div>
-								<h2>Second party</h2>
-								<p>The other side of the conversation.</p>
-							</div>
-						</div>
-						<Field
-							label='Second party legal name *'
-							value={draft.partyBName}
-							placeholder='e.g. Jordan Lee or Acme, Inc.'
-							onChange={(value) => update('partyBName', value)}
-						/>
-						<Field
-							label='Second party business address'
-							value={draft.partyBAddress}
-							placeholder='Street, city, state, ZIP'
-							onChange={(value) => update('partyBAddress', value)}
-						/>
-					</div>
-
-					<div className='form-section final-form-section'>
-						<div className='form-section-title'>
-							<span className='section-number'>C</span>
-							<div>
-								<h2>Working together</h2>
-								<p>Define the conversation you want to protect.</p>
-							</div>
-						</div>
-						<Field
-							label='Effective date'
-							value={draft.effectiveDate}
-							type='date'
-							onChange={(value) => update('effectiveDate', value)}
-						/>
-						<Field
-							label='Purpose *'
-							value={draft.purpose}
-							placeholder='What are you exploring together?'
-							hint='A short phrase is perfect.'
-							onChange={(value) => update('purpose', value)}
-						/>
-						<Field
-							label='Governing law'
-							value={draft.governingLaw}
-							placeholder='e.g. California'
-							hint='The state or country whose laws apply.'
-							onChange={(value) => update('governingLaw', value)}
-						/>
-					</div>
-
-					<div className='form-footer'>
-						<span>
-							<LockKeyhole size={14} /> Private by design. Nothing is uploaded.
-						</span>
-					</div>
-				</section>
-
-				<section
-					className='preview-panel'
-					aria-labelledby='preview-title'>
-					<div className='preview-toolbar'>
-						<div>
-							<span className='section-kicker'>02 — LIVE PREVIEW</span>
-							<h2 id='preview-title'>Your agreement</h2>
-						</div>
-						<span className='live-pill'>
-							<span /> LIVE
-						</span>
-					</div>
-
-					<div className='download-area'>
-						<div className='download-caption'>
-							<span className='download-icon'>
-								<FileText size={17} />
-							</span>
-							<span>
-								<strong>Ready when you are</strong>
-								<small>Your document, formatted and yours to keep.</small>
-							</span>
-						</div>
-						<button
-							className='download-button'
-							onClick={download}
-							disabled={downloading}>
-							{downloading ? 'Preparing…' : 'Download PDF'}
-							<Download size={16} />
-						</button>
-					</div>
-
-					<div
-						className='paper-wrap'
-						tabIndex={0}
-						role='region'
-						aria-label='Scrollable agreement preview'>
-						<article
-							className='paper'
-							aria-label='Mutual NDA document preview'>
-							<div className='paper-topline'>
-								<span>
-									PRELEGAL <i> / </i> AGREEMENT
-								</span>
-								<span>
-									DRAFT · {formatDate(draft.effectiveDate).toUpperCase()}
-								</span>
-							</div>
-							<h3 className='document-title'>
-								Mutual Non-Disclosure
-								<br />
-								Agreement
-							</h3>
-							<p className='document-lede'>
-								A simple agreement to keep shared ideas and information between
-								the parties.
-							</p>
-							<p className='document-opening'>
-								This Mutual Non-Disclosure Agreement (“Agreement”) is between{' '}
-								<strong>{draft.partyAName || '[Party A name]'}</strong>
-								{draft.partyAAddress
-									? `, located at ${draft.partyAAddress}`
-									: ''}
-								, and <strong>{draft.partyBName || '[Party B name]'}</strong>
-								{draft.partyBAddress
-									? `, located at ${draft.partyBAddress}`
-									: ''}{' '}
-								(each a “party” and together the “parties”), effective{' '}
-								{formatDate(draft.effectiveDate)}.
-							</p>
-							<div className='document-body'>
-								{getAgreementSections(draft).map((section) => (
-									<section
-										key={section.heading}
-										className='document-section'>
-										<h4>{section.heading}</h4>
-										<p>{section.body}</p>
-									</section>
-								))}
-							</div>
-							<div className='paper-footer'>
-								<span>PREPARED WITH PRELEGAL</span>
-								<span>
-									{' '}
-									MUTUAL NDA <i>·</i> {draft.governingLaw || 'JURISDICTION'}
-								</span>
-							</div>
-						</article>
-					</div>
-					{downloadError && (
-						<p
-							role='alert'
-							className='download-error'>
-							{downloadError}
-						</p>
 					)}
-					<p className='download-footnote'>
-						<Check size={13} /> Print-ready PDF <span>·</span> No watermark{' '}
-						<span>·</span> Generated on your device
-					</p>
+
+					{catalog.length > 0 && (
+						<div className='template-picker'>
+							<label htmlFor='template-select'>Or start with a template</label>
+							<select id='template-select' value={documentId} onChange={(event) => setDocumentId(event.target.value)}>
+								<option value=''>Choose an agreement</option>
+								{catalog.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}
+							</select>
+							{documentId && <p>{selectedDocument?.description}</p>}
+						</div>
+					)}
+
+					<form className='chat-form' onSubmit={sendMessage}>
+						<label className='sr-only' htmlFor='message'>Describe the agreement you need</label>
+						<textarea
+							id='message'
+							value={message}
+							placeholder='For example: I need an agreement for a short software pilot…'
+							maxLength={2000}
+							onChange={(event) => setMessage(event.target.value)}
+						/>
+						<div className='chat-form-bottom'>
+							<label className='consent-label'>
+								<input type='checkbox' checked={consent} onChange={(event) => setConsent(event.target.checked)} />
+								<span>I understand messages and provided details are sent to OpenRouter for AI assistance. They aren’t saved to an account or database.</span>
+							</label>
+							<button className='send-button' type='submit' disabled={!consent || !message.trim() || busy}>
+								Send <Send size={15} />
+							</button>
+						</div>
+						<p className='privacy-note'>Don’t enter health information or other highly sensitive personal data. This is a general template, not legal advice.</p>
+					</form>
+					{error && <p className='download-error' role='alert'>{error}</p>}
 				</section>
+
+				<aside className='draft-panel' aria-label='Draft document'>
+					<div className='draft-heading'>
+						<div>
+							<span className='section-kicker'>DOCUMENT PREVIEW</span>
+							<h2>{rendered?.title || selectedDocument?.title || 'Your agreement'}</h2>
+						</div>
+						<button className='review-button' type='button' onClick={reviewDocument} disabled={!documentId || busy}>Review draft</button>
+					</div>
+
+					{rendered ? (
+						<>
+							{(rendered.missing_required.length > 0 || rendered.missing_variables.length > 0 || rendered.missing_companions.length > 0) && (
+								<div className='draft-warning' role='status'>
+									<strong>Review before using this draft.</strong>
+									{rendered.missing_required.length > 0 && <p>Details still needed: {rendered.missing_required.join(', ')}.</p>}
+									{rendered.missing_variables.length > 0 && <p>Unfilled template variables: {rendered.missing_variables.slice(0, 6).join(', ')}{rendered.missing_variables.length > 6 ? `, and ${rendered.missing_variables.length - 6} more` : ''}.</p>}
+									{rendered.missing_companions.length > 0 && <p>The source terms refer to companion documents not included in this catalog: {rendered.missing_companions.join(', ')}. They are not generated here.</p>}
+								</div>
+							)}
+							<div className='rendered-document' dangerouslySetInnerHTML={{__html: rendered.html}} />
+							<button className='download-button' type='button' onClick={() => downloadDocumentPdf(rendered.title, rendered.text)}>
+								Download PDF <Download size={16} />
+							</button>
+						</>
+					) : (
+						<div className='empty-draft'>
+							<FileText size={28} />
+							<p>Choose an agreement and answer a few questions to see your template-based draft here.</p>
+						</div>
+					)}
+				</aside>
 			</div>
 
 			<footer className='site-footer'>
-				<span>
-					PRELEGAL <i>·</i> TOOLS FOR BETTER AGREEMENTS
-				</span>
-				<span className='disclaimer'>
-					<strong>A starting point, not legal advice.</strong> This prototype
-					provides a general template only. Have an attorney review it for your
-					situation.
-				</span>
-				<span>© 2026 PRELEGAL</span>
+				<span>PRELEGAL · TOOLS FOR BETTER AGREEMENTS</span>
+				<span className='disclaimer'>A starting point, not legal advice. Have an attorney review generated drafts.</span>
 			</footer>
 		</main>
 	);
