@@ -32,6 +32,98 @@ body {
 	margin: 0 auto;
 	padding: 0 7.2%;
 }
+.login-shell {
+	max-width: 1440px;
+	min-height: 100vh;
+	margin: 0 auto;
+	padding: 0 7.2%;
+	display: flex;
+	flex-direction: column;
+}
+.login-topbar {
+	flex: none;
+}
+.login-content {
+	flex: 1;
+	display: grid;
+	place-items: center;
+	padding: 48px 0;
+}
+.login-card {
+	width: min(100%, 420px);
+	padding: 38px;
+	border: 1px solid #e5e7df;
+	border-radius: 10px;
+	background: #fffefa;
+	box-shadow: 0 12px 40px #26382b0a;
+}
+.login-icon {
+	width: 42px;
+	height: 42px;
+	margin-bottom: 24px;
+	border-radius: 9px;
+	background: #eff3e8;
+	color: var(--green);
+	display: grid;
+	place-items: center;
+}
+.login-card h1 {
+	margin: 10px 0 8px;
+	font: 600 31px var(--serif);
+	letter-spacing: -0.6px;
+}
+.login-description {
+	margin: 0;
+	color: var(--muted);
+	font-size: 13px;
+	line-height: 1.6;
+}
+.login-form {
+	margin-top: 27px;
+}
+.login-form .field {
+	margin-bottom: 16px;
+}
+.login-button {
+	width: 100%;
+	min-height: 44px;
+	margin-top: 5px;
+	border: 0;
+	border-radius: 5px;
+	background: var(--green);
+	color: white;
+	font: 600 13px var(--sans);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 9px;
+	cursor: pointer;
+}
+.login-button:hover {
+	background: var(--green-dark);
+}
+.login-button:focus-visible {
+	outline: 3px solid #b4cba9;
+	outline-offset: 2px;
+}
+.demo-notice {
+	margin: 18px 0 0;
+	color: var(--muted);
+	font-size: 10px;
+	line-height: 1.5;
+	text-align: center;
+}
+.login-footer {
+	min-height: 58px;
+	border-top: 1px solid var(--line);
+	color: var(--muted);
+	font: 9px var(--mono);
+	letter-spacing: 0.5px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
 .topbar {
 	height: 76px;
 	border-bottom: 1px solid var(--line);
@@ -193,7 +285,7 @@ body {
 	justify-content: space-between;
 	align-items: flex-start;
 }
-.panel-heading h2,
+.panel-heading h1,
 .preview-toolbar h2 {
 	font: 600 27.5px var(--serif);
 	letter-spacing: -0.5px;
@@ -234,7 +326,7 @@ body {
 	place-items: center;
 	flex: none;
 }
-.form-section-title h3 {
+.form-section-title h2 {
 	font-size: 13.2px;
 	margin: 1px 0 4px;
 	font-weight: 600;
@@ -533,6 +625,18 @@ body {
 @media (max-width: 720px) {
 	.app-shell {
 		padding: 0 20px;
+	}
+	.login-shell {
+		padding: 0 20px;
+	}
+	.login-card {
+		padding: 30px 24px;
+	}
+	.login-footer {
+		padding: 15px 0;
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 8px;
 	}
 	.topbar {
 		height: 64px;

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mutual NDA Builder | Prelegal",
-  description: "Draft a mutual non-disclosure agreement and download it as a PDF.",
+	title: "Prelegal | Agreement Workspace",
+	description: "Continue to your Prelegal agreement workspace.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
