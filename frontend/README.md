@@ -1,9 +1,15 @@
 # Prelegal Frontend
 
-The Next.js frontend provides a demo-only entry screen and the existing mutual
-NDA workspace. The entry screen does not authenticate users; any valid-looking
-email and non-empty password continue to `/workspace` without sending or storing
-the values.
+The Next.js frontend provides a demo-only entry screen and an AI-guided document
+workspace. The entry screen does not authenticate users. The workspace can guide
+creation for the 11 agreement types represented by `catalog.json`, render the
+catalogued template text, and download a PDF. Templates that refer to absent
+companion documents are flagged in the preview.
+
+Before chat details are sent to OpenRouter, the user must consent to the
+disclosure. The conversation and collected values remain in page memory and are
+not stored in the database. Do not enter health information or other highly
+sensitive personal data.
 
 ## Run locally
 
@@ -13,8 +19,9 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and continue to the workspace.
-The form and live document preview run in the browser; PDF export is generated
-locally and form details are not sent to a server.
+For AI requests, run the backend and configure `OPENROUTER_API_KEY` for it. The
+frontend proxies `/api/*` requests to the backend; local development defaults to
+`http://localhost:8000`.
 
 ## Checks
 

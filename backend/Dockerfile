@@ -5,12 +5,15 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-COPY pyproject.toml uv.lock ./
-COPY prelegal_api ./prelegal_api
+COPY backend/pyproject.toml backend/uv.lock ./
+COPY backend/prelegal_api ./prelegal_api
+COPY catalog.json ./catalog.json
+COPY templates ./templates
 
 RUN uv sync --locked --no-dev --no-cache
 
-ENV PRELEGAL_DATABASE_PATH=/app/data/prelegal.db
+ENV PRELEGAL_DATABASE_PATH=/app/data/prelegal.db \
+    PRELEGAL_PROJECT_ROOT=/app
 
 EXPOSE 8000
 

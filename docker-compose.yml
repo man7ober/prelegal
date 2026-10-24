@@ -1,7 +1,12 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      PRELEGAL_PROJECT_ROOT: /app
+      PRELEGAL_DATABASE_PATH: /app/data/prelegal.db
     ports:
       - "8000:8000"
     healthcheck:
@@ -13,6 +18,8 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        PRELEGAL_API_ORIGIN: http://backend:8000
     ports:
       - "3000:3000"
     depends_on:
