@@ -8,10 +8,11 @@ A platform for drafting common legal agreements
 
 ## Run Prelegal
 
-The app provides a demo-only entry screen and an AI-guided agreement workflow for
-the 11 document types represented by the local templates. It renders the
-catalogued terms, provides a PDF download, and flags any companion forms not
-included in the catalog. It does not provide real authentication or persistence.
+The app provides a demo-only entry screen and an AI-guided Mutual NDA workflow.
+Other template files are retained in the repository for future work, but are not
+currently exposed by the chat or document-rendering API. The NDA flow renders the
+catalogued terms and provides a PDF download. The app does not provide real
+authentication or persistence.
 
 Start both services with Docker Compose:
 

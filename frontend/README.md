@@ -1,10 +1,10 @@
 # Prelegal Frontend
 
-The Next.js frontend provides a demo-only entry screen and an AI-guided document
-workspace. The entry screen does not authenticate users. The workspace can guide
-creation for the 11 agreement types represented by `catalog.json`, render the
-catalogued template text, and download a PDF. Templates that refer to absent
-companion documents are flagged in the preview.
+The Next.js frontend provides a demo-only entry screen and an AI-guided Mutual
+NDA workspace. The entry screen does not authenticate users. The workspace
+guides NDA creation, updates a preview from chat responses, and downloads a PDF.
+Other template files remain in the repository but are not exposed by the current
+chat workflow or document-rendering API.
 
 Before chat details are sent to OpenRouter, the user must consent to the
 disclosure. The conversation and collected values remain in page memory and are

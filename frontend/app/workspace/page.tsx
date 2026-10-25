@@ -23,17 +23,32 @@ type RenderedDocument = {
 	missing_companions: string[];
 };
 
+const NDA_DOCUMENT_ID = 'mutual-nda';
+
+async function fetchRenderedDocument(
+	documentId: string,
+	fieldValues: Record<string, string>,
+): Promise<RenderedDocument> {
+	const response = await fetch(`/api/documents/${documentId}/render`, {
+		method: 'POST',
+		headers: {'Content-Type': 'application/json'},
+		body: JSON.stringify({field_values: fieldValues}),
+	});
+	const result = await response.json();
+	if (!response.ok) throw new Error(result.detail || 'The document could not be rendered.');
+	return result as RenderedDocument;
+}
+
 export default function Workspace() {
 	const [catalog, setCatalog] = useState<DocumentInfo[]>([]);
 	const [messages, setMessages] = useState<ChatMessage[]>([
 		{
 			role: 'assistant',
-			content:
-				'What agreement are you looking to create? Describe it in your own words, or choose one of the supported templates below.',
+			content: 'I can help you prepare a Mutual Non-Disclosure Agreement. Tell me what you want to protect and who the parties are; I’ll ask for any details the template still needs.',
 		},
 	]);
 	const [message, setMessage] = useState('');
-	const [documentId, setDocumentId] = useState('');
+	const documentId = NDA_DOCUMENT_ID;
 	const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 	const [suggestion, setSuggestion] = useState('');
 	const [consent, setConsent] = useState(false);
@@ -43,20 +58,33 @@ export default function Workspace() {
 	const messageList = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		fetch('/api/documents')
-			.then(async (response) => {
+		let ignore = false;
+		async function loadWorkspace() {
+			try {
+				const response = await fetch('/api/documents');
 				if (!response.ok) throw new Error('The template catalog could not be loaded.');
-				return (await response.json()) as DocumentInfo[];
-			})
-			.then(setCatalog)
-			.catch(() => setError('The template catalog could not be loaded. Please refresh the page.'));
+				const documents = (await response.json()) as DocumentInfo[];
+				if (!documents.some((document) => document.id === NDA_DOCUMENT_ID)) {
+					throw new Error('The Mutual NDA template is unavailable.');
+				}
+				const initialDraft = await fetchRenderedDocument(NDA_DOCUMENT_ID, {});
+				if (!ignore) {
+					setCatalog(documents);
+					setRendered(initialDraft);
+				}
+			} catch {
+				if (!ignore) setError('The Mutual NDA template could not be loaded. Please refresh the page.');
+			}
+		}
+		void loadWorkspace();
+		return () => { ignore = true; };
 	}, []);
 
 	useEffect(() => {
 		messageList.current?.scrollTo({top: messageList.current.scrollHeight, behavior: 'smooth'});
 	}, [messages]);
 
-	const selectedDocument = catalog.find((document) => document.id === documentId);
+	const selectedDocument = catalog.find((document) => document.id === NDA_DOCUMENT_ID);
 
 	async function sendMessage(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -82,37 +110,22 @@ export default function Workspace() {
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.detail || 'The assistant could not respond.');
-			if (result.document_id) setDocumentId(result.document_id);
-			setFieldValues(result.field_values || {});
+			const updatedValues = (result.field_values || {}) as Record<string, string>;
+			setFieldValues(updatedValues);
 			setSuggestion(result.suggested_document_id || '');
 			setMessages((current) => [
 				...current,
 				{role: 'assistant', content: result.message},
 			]);
+			try {
+				setRendered(await fetchRenderedDocument(NDA_DOCUMENT_ID, updatedValues));
+			} catch {
+				setError('The reply was received, but the document preview could not be refreshed.');
+			}
 		} catch (requestError) {
 			setError(requestError instanceof Error ? requestError.message : 'The assistant could not respond.');
 		}
 		setBusy(false);
-	}
-
-	async function reviewDocument() {
-		if (!documentId) return;
-		setBusy(true);
-		setError('');
-		try {
-			const response = await fetch(`/api/documents/${documentId}/render`, {
-				method: 'POST',
-				headers: {'Content-Type': 'application/json'},
-				body: JSON.stringify({field_values: fieldValues}),
-			});
-			const result = await response.json();
-			if (!response.ok) throw new Error(result.detail || 'The document could not be rendered.');
-			setRendered(result as RenderedDocument);
-		} catch (requestError) {
-			setError(requestError instanceof Error ? requestError.message : 'The document could not be rendered.');
-		} finally {
-			setBusy(false);
-		}
 	}
 
 	return (
@@ -136,7 +149,7 @@ export default function Workspace() {
 					<div className='chat-heading'>
 						<div>
 							<span className='section-kicker'>YOUR ASSISTANT</span>
-							<h2>What are you working on?</h2>
+							<h2>Your Mutual NDA</h2>
 						</div>
 						{selectedDocument && <span className='selected-type'>{selectedDocument.title}</span>}
 					</div>
@@ -153,36 +166,29 @@ export default function Workspace() {
 
 					{suggestion && (
 						<div className='suggestion-card'>
-							<p>This request is outside the supported templates. The closest available option is:</p>
-							<button type='button' onClick={() => {
-								const suggested = catalog.find((item) => item.id === suggestion);
-								if (suggested) {
-								setDocumentId(suggested.id);
-								setMessage(`I would like to create a ${suggested.title}.`);
-							}
-							}}>
+								<p>This request is outside the current Mutual NDA template. The closest available option is:</p>
+								<button type='button' onClick={() => {
+									const suggested = catalog.find((item) => item.id === suggestion);
+									if (suggested) {
+										setMessage(`I would like to continue with a ${suggested.title}.`);
+									}
+								}}>
 								{catalog.find((item) => item.id === suggestion)?.title || 'Suggested agreement'}
 							</button>
 						</div>
 					)}
 
-					{catalog.length > 0 && (
-						<div className='template-picker'>
-							<label htmlFor='template-select'>Or start with a template</label>
-							<select id='template-select' value={documentId} onChange={(event) => setDocumentId(event.target.value)}>
-								<option value=''>Choose an agreement</option>
-								{catalog.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}
-							</select>
-							{documentId && <p>{selectedDocument?.description}</p>}
-						</div>
-					)}
+					<div className='template-picker'>
+						<strong>{selectedDocument?.title || 'Mutual Non-Disclosure Agreement'}</strong>
+						<p>{selectedDocument?.description || 'Describe your NDA and the assistant will guide you through its fields.'}</p>
+					</div>
 
 					<form className='chat-form' onSubmit={sendMessage}>
 						<label className='sr-only' htmlFor='message'>Describe the agreement you need</label>
 						<textarea
 							id='message'
 							value={message}
-							placeholder='For example: I need an agreement for a short software pilot…'
+							placeholder='For example: I need to protect information while discussing a possible partnership…'
 							maxLength={2000}
 							onChange={(event) => setMessage(event.target.value)}
 						/>
@@ -206,7 +212,7 @@ export default function Workspace() {
 							<span className='section-kicker'>DOCUMENT PREVIEW</span>
 							<h2>{rendered?.title || selectedDocument?.title || 'Your agreement'}</h2>
 						</div>
-						<button className='review-button' type='button' onClick={reviewDocument} disabled={!documentId || busy}>Review draft</button>
+						<span className='live-pill'><span /> LIVE PREVIEW</span>
 					</div>
 
 					{rendered ? (
@@ -227,7 +233,7 @@ export default function Workspace() {
 					) : (
 						<div className='empty-draft'>
 							<FileText size={28} />
-							<p>Choose an agreement and answer a few questions to see your template-based draft here.</p>
+							<p>Describe your NDA and the assistant will update this template-based draft as it gathers details.</p>
 						</div>
 					)}
 				</aside>

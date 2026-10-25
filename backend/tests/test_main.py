@@ -31,12 +31,12 @@ def test_startup_creates_empty_database(tmp_path, monkeypatch) -> None:
     assert tables == []
 
 
-def test_document_catalog_endpoint_returns_all_supported_types() -> None:
+def test_chat_catalog_endpoint_exposes_only_mutual_nda() -> None:
     with TestClient(app) as client:
         response = client.get("/api/documents")
 
     assert response.status_code == 200
-    assert len(response.json()) == 11
+    assert [document["id"] for document in response.json()] == ["mutual-nda"]
 
 
 def test_chat_requires_explicit_ai_disclosure() -> None:
@@ -51,6 +51,7 @@ def test_chat_requires_explicit_ai_disclosure() -> None:
 
 def test_chat_uses_structured_intake_and_restricts_values(monkeypatch) -> None:
     async def fake_intake(messages, context):
+        assert [document["id"] for document in context["catalog"]] == ["mutual-nda"]
         return {
             "action": "ready",
             "document_id": "mutual-nda",
@@ -79,23 +80,47 @@ def test_chat_uses_structured_intake_and_restricts_values(monkeypatch) -> None:
     assert "not_a_field" not in response.json()["field_values"]
 
 
-def test_render_endpoint_returns_completed_html_and_companion_warning() -> None:
+def test_render_endpoint_returns_mutual_nda_with_values() -> None:
     with TestClient(app) as client:
         response = client.post(
-            "/api/documents/cloud-service-agreement/render",
+            "/api/documents/mutual-nda/render",
             json={
                 "field_values": {
-                    "customer": "Acme",
-                    "provider": "Prelegal",
-                    "effective_date": "2026-10-24",
+                    "party_1": "Acme",
+                    "party_2": "Prelegal",
+                    "purpose": "Evaluate a partnership",
+                    "effective_date": "October 24, 2026",
                     "governing_law": "California",
+                    "jurisdiction": "San Francisco, California",
                 }
             },
         )
 
     assert response.status_code == 200
     assert "Acme" in response.json()["html"]
-    assert "Order Form" in response.json()["missing_companions"]
+    assert response.json()["missing_companions"] == []
+
+
+def test_chat_and_render_reject_all_non_nda_documents() -> None:
+    with TestClient(app) as client:
+        for document in main.documents.list_documents():
+            if document["id"] == "mutual-nda":
+                continue
+            chat_response = client.post(
+                "/api/chat",
+                json={
+                    "messages": [{"role": "user", "content": f"Create a {document['title']}"}],
+                    "document_id": document["id"],
+                    "consent": True,
+                },
+            )
+            render_response = client.post(
+                f"/api/documents/{document['id']}/render",
+                json={"field_values": {}},
+            )
+
+            assert chat_response.status_code == 404
+            assert render_response.status_code == 404
 
 
 def test_unsupported_request_suggests_only_a_catalog_document(monkeypatch) -> None:
@@ -104,7 +129,7 @@ def test_unsupported_request_suggests_only_a_catalog_document(monkeypatch) -> No
             "action": "unsupported",
             "document_id": None,
             "message": "This request is not supported by a template.",
-            "suggested_document_id": "pilot-agreement",
+            "suggested_document_id": "mutual-nda",
             "field_updates": [],
         }
 
@@ -120,4 +145,4 @@ def test_unsupported_request_suggests_only_a_catalog_document(monkeypatch) -> No
 
     assert response.status_code == 200
     assert response.json()["action"] == "unsupported"
-    assert response.json()["suggested_document_id"] == "pilot-agreement"
+    assert response.json()["suggested_document_id"] == "mutual-nda"
