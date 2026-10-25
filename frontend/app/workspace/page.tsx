@@ -1,8 +1,9 @@
 'use client';
 
 import {type FormEvent, useEffect, useRef, useState} from 'react';
-import {Download, FileText, Send} from 'lucide-react';
+import {Download, FileText, History, LogOut, Save, Send} from 'lucide-react';
 import Link from 'next/link';
+import {useRouter} from 'next/navigation';
 import {downloadDocumentPdf} from '@/lib/pdf';
 
 type DocumentInfo = {
@@ -23,6 +24,12 @@ type RenderedDocument = {
 	missing_companions: string[];
 };
 
+type SavedDocument = {
+	id: string;
+	title: string;
+	field_values: Record<string, string>;
+};
+
 const NDA_DOCUMENT_ID = 'mutual-nda';
 
 async function fetchRenderedDocument(
@@ -41,6 +48,7 @@ async function fetchRenderedDocument(
 }
 
 export default function Workspace() {
+	const router = useRouter();
 	const [catalog, setCatalog] = useState<DocumentInfo[]>([]);
 	const [messages, setMessages] = useState<ChatMessage[]>([
 		{
@@ -55,7 +63,11 @@ export default function Workspace() {
 	const [suggestion, setSuggestion] = useState('');
 	const [consent, setConsent] = useState(false);
 	const [busy, setBusy] = useState(false);
+	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
+	const [saveStatus, setSaveStatus] = useState('');
+	const [currentUser, setCurrentUser] = useState('');
+	const [savedDocumentId, setSavedDocumentId] = useState<string | null>(null);
 	const [rendered, setRendered] = useState<RenderedDocument | null>(null);
 	const messageList = useRef<HTMLDivElement>(null);
 
@@ -63,16 +75,49 @@ export default function Workspace() {
 		let ignore = false;
 		async function loadWorkspace() {
 			try {
-				const response = await fetch('/api/documents');
+				const sessionResponse = await fetch('/api/auth/me');
+				if (sessionResponse.status === 401) {
+					router.replace('/');
+					return;
+				}
+				if (!sessionResponse.ok) throw new Error('Your account could not be loaded.');
+				const session = await sessionResponse.json();
+				const response = await fetch('/api/templates');
 				if (!response.ok)
 					throw new Error('The template catalog could not be loaded.');
 				const documents = (await response.json()) as DocumentInfo[];
 				if (!documents.some((document) => document.id === NDA_DOCUMENT_ID)) {
 					throw new Error('The Mutual NDA template is unavailable.');
 				}
-				const initialDraft = await fetchRenderedDocument(NDA_DOCUMENT_ID, {});
+				const savedId = new URLSearchParams(window.location.search).get('document_id');
+				let initialValues: Record<string, string> = {};
+				let initialMessages: ChatMessage[] = [
+					{
+						role: 'assistant',
+						content: 'I can help you prepare a Mutual Non-Disclosure Agreement. Tell me what you want to protect and who the parties are; I’ll ask for any details the template still needs.',
+					},
+				];
+				if (savedId) {
+					const savedResponse = await fetch(`/api/documents/${encodeURIComponent(savedId)}`);
+					if (savedResponse.status === 401) {
+						router.replace('/');
+						return;
+					}
+					if (!savedResponse.ok) throw new Error('That saved draft could not be opened.');
+					const saved = (await savedResponse.json()) as SavedDocument;
+					initialValues = saved.field_values;
+					initialMessages = [{
+						role: 'assistant',
+						content: `I reopened “${saved.title}”. Tell me what you’d like to change, and I’ll update the draft.`,
+					}];
+				}
+				const initialDraft = await fetchRenderedDocument(NDA_DOCUMENT_ID, initialValues);
 				if (!ignore) {
+					setCurrentUser(session.email);
 					setCatalog(documents);
+					setFieldValues(initialValues);
+					setMessages(initialMessages);
+					if (savedId) setSavedDocumentId(savedId);
 					setRendered(initialDraft);
 				}
 			} catch {
@@ -86,7 +131,7 @@ export default function Workspace() {
 		return () => {
 			ignore = true;
 		};
-	}, []);
+	}, [router]);
 
 	useEffect(() => {
 		messageList.current?.scrollTo({
@@ -102,7 +147,7 @@ export default function Workspace() {
 	async function sendMessage(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		const content = message.trim();
-		if (!content || !consent || busy) return;
+		if (!content || !consent || busy || saving) return;
 
 		const nextMessages: ChatMessage[] = [...messages, {role: 'user', content}];
 		setMessages(nextMessages);
@@ -134,6 +179,7 @@ export default function Workspace() {
 				...current,
 				{role: 'assistant', content: result.message},
 			]);
+			setSaveStatus(savedDocumentId ? 'Unsaved changes' : '');
 			try {
 				setRendered(
 					await fetchRenderedDocument(NDA_DOCUMENT_ID, updatedValues),
@@ -153,6 +199,46 @@ export default function Workspace() {
 		setBusy(false);
 	}
 
+	async function saveDraft() {
+		if (saving || busy || Object.keys(fieldValues).length === 0) return;
+		setSaving(true);
+		setError('');
+		setSaveStatus('');
+		const isUpdate = Boolean(savedDocumentId);
+		try {
+			const response = await fetch(
+				isUpdate ? `/api/documents/${encodeURIComponent(savedDocumentId!)}` : '/api/documents',
+				{
+					method: isUpdate ? 'PUT' : 'POST',
+					headers: {'Content-Type': 'application/json'},
+					body: JSON.stringify({field_values: fieldValues}),
+				},
+			);
+			const result = await response.json();
+			if (response.status === 401) {
+				router.replace('/');
+				return;
+			}
+			if (!response.ok) throw new Error(result.detail || 'The draft could not be saved.');
+			setSavedDocumentId(result.id);
+			setSaveStatus('Saved to your account.');
+			window.history.replaceState(null, '', `/workspace?document_id=${encodeURIComponent(result.id)}`);
+		} catch (saveError) {
+			setError(saveError instanceof Error ? saveError.message : 'The draft could not be saved.');
+		} finally {
+			setSaving(false);
+		}
+	}
+
+	async function signOut() {
+		try {
+			await fetch('/api/auth/logout', {method: 'POST'});
+		} finally {
+			router.replace('/');
+			router.refresh();
+		}
+	}
+
 	return (
 		<main className='app-shell guided-shell'>
 			<header className='topbar'>
@@ -167,7 +253,11 @@ export default function Workspace() {
 						prelegal<span className='brand-period'>.</span>
 					</span>
 				</Link>
-				<span className='guided-label'>AGREEMENT STUDIO</span>
+				<div className='workspace-account'>
+					<span>{currentUser}</span>
+					<Link href='/history'><History size={14} /> Saved drafts</Link>
+					<button type='button' onClick={signOut}><LogOut size={14} /> Sign out</button>
+				</div>
 			</header>
 
 			<section className='guided-intro'>
@@ -251,6 +341,7 @@ export default function Workspace() {
 							value={message}
 							placeholder='For example: I need to protect information while discussing a possible partnership…'
 							maxLength={2000}
+							disabled={busy || saving}
 							onChange={(event) => setMessage(event.target.value)}
 						/>
 						<div className='chat-form-bottom'>
@@ -261,15 +352,15 @@ export default function Workspace() {
 									onChange={(event) => setConsent(event.target.checked)}
 								/>
 								<span>
-									I understand messages and provided details are sent to
-									OpenRouter for AI assistance. They aren’t saved to an account
-									or database.
+									I understand messages and details I provide are sent to OpenRouter.
+									NDA fields are saved to my account only when I choose Save; chat
+									transcripts are not stored.
 								</span>
 							</label>
 							<button
 								className='send-button'
 								type='submit'
-								disabled={!consent || !message.trim() || busy}>
+								disabled={!consent || !message.trim() || busy || saving}>
 								Send <Send size={15} />
 							</button>
 						</div>
@@ -297,9 +388,17 @@ export default function Workspace() {
 								{rendered?.title || selectedDocument?.title || 'Your agreement'}
 							</h2>
 						</div>
-						<span className='live-pill'>
-							<span /> LIVE PREVIEW
-						</span>
+						<div className='draft-actions'>
+							{saveStatus && <span className='save-status' role='status'>{saveStatus}</span>}
+							<button
+								className='save-draft-button'
+								type='button'
+								disabled={saving || busy || Object.keys(fieldValues).length === 0}
+								onClick={saveDraft}>
+								<Save size={14} /> {saving ? 'Saving…' : savedDocumentId ? 'Save changes' : 'Save draft'}
+							</button>
+							<span className='live-pill'><span /> LIVE PREVIEW</span>
+						</div>
 					</div>
 
 					{rendered ? (
@@ -364,8 +463,7 @@ export default function Workspace() {
 			<footer className='site-footer'>
 				<span>PRELEGAL · TOOLS FOR BETTER AGREEMENTS</span>
 				<span className='disclaimer'>
-					A starting point, not legal advice. Have an attorney review generated
-					drafts.
+					Draft only—not legal advice. Have an attorney review before signing.
 				</span>
 			</footer>
 		</main>

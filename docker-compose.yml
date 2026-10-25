@@ -5,6 +5,8 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       PRELEGAL_PROJECT_ROOT: /app
       PRELEGAL_DATABASE_PATH: /app/data/prelegal.db
     ports:
