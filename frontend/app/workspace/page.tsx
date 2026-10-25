@@ -35,7 +35,8 @@ async function fetchRenderedDocument(
 		body: JSON.stringify({field_values: fieldValues}),
 	});
 	const result = await response.json();
-	if (!response.ok) throw new Error(result.detail || 'The document could not be rendered.');
+	if (!response.ok)
+		throw new Error(result.detail || 'The document could not be rendered.');
 	return result as RenderedDocument;
 }
 
@@ -44,7 +45,8 @@ export default function Workspace() {
 	const [messages, setMessages] = useState<ChatMessage[]>([
 		{
 			role: 'assistant',
-			content: 'I can help you prepare a Mutual Non-Disclosure Agreement. Tell me what you want to protect and who the parties are; I’ll ask for any details the template still needs.',
+			content:
+				'I can help you prepare a Mutual Non-Disclosure Agreement. Tell me what you want to protect and who the parties are; I’ll ask for any details the template still needs.',
 		},
 	]);
 	const [message, setMessage] = useState('');
@@ -62,7 +64,8 @@ export default function Workspace() {
 		async function loadWorkspace() {
 			try {
 				const response = await fetch('/api/documents');
-				if (!response.ok) throw new Error('The template catalog could not be loaded.');
+				if (!response.ok)
+					throw new Error('The template catalog could not be loaded.');
 				const documents = (await response.json()) as DocumentInfo[];
 				if (!documents.some((document) => document.id === NDA_DOCUMENT_ID)) {
 					throw new Error('The Mutual NDA template is unavailable.');
@@ -73,18 +76,28 @@ export default function Workspace() {
 					setRendered(initialDraft);
 				}
 			} catch {
-				if (!ignore) setError('The Mutual NDA template could not be loaded. Please refresh the page.');
+				if (!ignore)
+					setError(
+						'The Mutual NDA template could not be loaded. Please refresh the page.',
+					);
 			}
 		}
 		void loadWorkspace();
-		return () => { ignore = true; };
+		return () => {
+			ignore = true;
+		};
 	}, []);
 
 	useEffect(() => {
-		messageList.current?.scrollTo({top: messageList.current.scrollHeight, behavior: 'smooth'});
+		messageList.current?.scrollTo({
+			top: messageList.current.scrollHeight,
+			behavior: 'smooth',
+		});
 	}, [messages]);
 
-	const selectedDocument = catalog.find((document) => document.id === NDA_DOCUMENT_ID);
+	const selectedDocument = catalog.find(
+		(document) => document.id === NDA_DOCUMENT_ID,
+	);
 
 	async function sendMessage(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -109,8 +122,12 @@ export default function Workspace() {
 				}),
 			});
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.detail || 'The assistant could not respond.');
-			const updatedValues = (result.field_values || {}) as Record<string, string>;
+			if (!response.ok)
+				throw new Error(result.detail || 'The assistant could not respond.');
+			const updatedValues = (result.field_values || {}) as Record<
+				string,
+				string
+			>;
 			setFieldValues(updatedValues);
 			setSuggestion(result.suggested_document_id || '');
 			setMessages((current) => [
@@ -118,12 +135,20 @@ export default function Workspace() {
 				{role: 'assistant', content: result.message},
 			]);
 			try {
-				setRendered(await fetchRenderedDocument(NDA_DOCUMENT_ID, updatedValues));
+				setRendered(
+					await fetchRenderedDocument(NDA_DOCUMENT_ID, updatedValues),
+				);
 			} catch {
-				setError('The reply was received, but the document preview could not be refreshed.');
+				setError(
+					'The reply was received, but the document preview could not be refreshed.',
+				);
 			}
 		} catch (requestError) {
-			setError(requestError instanceof Error ? requestError.message : 'The assistant could not respond.');
+			setError(
+				requestError instanceof Error
+					? requestError.message
+					: 'The assistant could not respond.',
+			);
 		}
 		setBusy(false);
 	}
@@ -131,9 +156,16 @@ export default function Workspace() {
 	return (
 		<main className='app-shell guided-shell'>
 			<header className='topbar'>
-				<Link className='brand' href='/' aria-label='Prelegal home'>
-					<span className='brand-mark'><FileText size={17} /></span>
-					<span>prelegal<span className='brand-period'>.</span></span>
+				<Link
+					className='brand'
+					href='/'
+					aria-label='Prelegal home'>
+					<span className='brand-mark'>
+						<FileText size={17} />
+					</span>
+					<span>
+						prelegal<span className='brand-period'>.</span>
+					</span>
 				</Link>
 				<span className='guided-label'>AGREEMENT STUDIO</span>
 			</header>
@@ -141,50 +173,79 @@ export default function Workspace() {
 			<section className='guided-intro'>
 				<span className='section-kicker'>GUIDED DOCUMENT DRAFTING</span>
 				<h1>Let’s find the right agreement.</h1>
-				<p>Share what you need. The assistant will help collect details and prepare a draft from the selected template.</p>
+				<p>
+					Share what you need. The assistant will help collect details and
+					prepare a draft from the selected template.
+				</p>
 			</section>
 
 			<div className='guided-layout'>
-				<section className='chat-panel' aria-label='Agreement drafting conversation'>
+				<section
+					className='chat-panel'
+					aria-label='Agreement drafting conversation'>
 					<div className='chat-heading'>
 						<div>
 							<span className='section-kicker'>YOUR ASSISTANT</span>
 							<h2>Your Mutual NDA</h2>
 						</div>
-						{selectedDocument && <span className='selected-type'>{selectedDocument.title}</span>}
+						{selectedDocument && (
+							<span className='selected-type'>{selectedDocument.title}</span>
+						)}
 					</div>
 
-					<div className='chat-messages' ref={messageList} aria-live='polite'>
+					<div
+						className='chat-messages'
+						ref={messageList}
+						aria-live='polite'>
 						{messages.map((item, index) => (
-							<div className={`chat-message ${item.role}`} key={`${item.role}-${index}`}>
+							<div
+								className={`chat-message ${item.role}`}
+								key={`${item.role}-${index}`}>
 								<span>{item.role === 'assistant' ? 'PRELEGAL' : 'YOU'}</span>
 								<p>{item.content}</p>
 							</div>
 						))}
-						{busy && <p className='chat-loading' role='status'>Preparing your response…</p>}
+						{busy && (
+							<p
+								className='chat-loading'
+								role='status'>
+								Preparing your response…
+							</p>
+						)}
 					</div>
 
 					{suggestion && (
 						<div className='suggestion-card'>
-								<p>This request is outside the current Mutual NDA template. The closest available option is:</p>
-								<button type='button' onClick={() => {
-									const suggested = catalog.find((item) => item.id === suggestion);
+							<p>
+								This request is outside the current Mutual NDA template. The
+								closest available option is:
+							</p>
+							<button
+								type='button'
+								onClick={() => {
+									const suggested = catalog.find(
+										(item) => item.id === suggestion,
+									);
 									if (suggested) {
-										setMessage(`I would like to continue with a ${suggested.title}.`);
+										setMessage(
+											`I would like to continue with a ${suggested.title}.`,
+										);
 									}
 								}}>
-								{catalog.find((item) => item.id === suggestion)?.title || 'Suggested agreement'}
+								{catalog.find((item) => item.id === suggestion)?.title ||
+									'Suggested agreement'}
 							</button>
 						</div>
 					)}
 
-					<div className='template-picker'>
-						<strong>{selectedDocument?.title || 'Mutual Non-Disclosure Agreement'}</strong>
-						<p>{selectedDocument?.description || 'Describe your NDA and the assistant will guide you through its fields.'}</p>
-					</div>
-
-					<form className='chat-form' onSubmit={sendMessage}>
-						<label className='sr-only' htmlFor='message'>Describe the agreement you need</label>
+					<form
+						className='chat-form'
+						onSubmit={sendMessage}>
+						<label
+							className='sr-only'
+							htmlFor='message'>
+							Describe the agreement you need
+						</label>
 						<textarea
 							id='message'
 							value={message}
@@ -194,46 +255,107 @@ export default function Workspace() {
 						/>
 						<div className='chat-form-bottom'>
 							<label className='consent-label'>
-								<input type='checkbox' checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-								<span>I understand messages and provided details are sent to OpenRouter for AI assistance. They aren’t saved to an account or database.</span>
+								<input
+									type='checkbox'
+									checked={consent}
+									onChange={(event) => setConsent(event.target.checked)}
+								/>
+								<span>
+									I understand messages and provided details are sent to
+									OpenRouter for AI assistance. They aren’t saved to an account
+									or database.
+								</span>
 							</label>
-							<button className='send-button' type='submit' disabled={!consent || !message.trim() || busy}>
+							<button
+								className='send-button'
+								type='submit'
+								disabled={!consent || !message.trim() || busy}>
 								Send <Send size={15} />
 							</button>
 						</div>
-						<p className='privacy-note'>Don’t enter health information or other highly sensitive personal data. This is a general template, not legal advice.</p>
+						<p className='privacy-note'>
+							Don’t enter health information or other highly sensitive personal
+							data. This is a general template, not legal advice.
+						</p>
 					</form>
-					{error && <p className='download-error' role='alert'>{error}</p>}
+					{error && (
+						<p
+							className='download-error'
+							role='alert'>
+							{error}
+						</p>
+					)}
 				</section>
 
-				<aside className='draft-panel' aria-label='Draft document'>
+				<aside
+					className='draft-panel'
+					aria-label='Draft document'>
 					<div className='draft-heading'>
 						<div>
 							<span className='section-kicker'>DOCUMENT PREVIEW</span>
-							<h2>{rendered?.title || selectedDocument?.title || 'Your agreement'}</h2>
+							<h2>
+								{rendered?.title || selectedDocument?.title || 'Your agreement'}
+							</h2>
 						</div>
-						<span className='live-pill'><span /> LIVE PREVIEW</span>
+						<span className='live-pill'>
+							<span /> LIVE PREVIEW
+						</span>
 					</div>
 
 					{rendered ? (
 						<>
-							{(rendered.missing_required.length > 0 || rendered.missing_variables.length > 0 || rendered.missing_companions.length > 0) && (
-								<div className='draft-warning' role='status'>
+							{(rendered.missing_required.length > 0 ||
+								rendered.missing_variables.length > 0 ||
+								rendered.missing_companions.length > 0) && (
+								<div
+									className='draft-warning'
+									role='status'>
 									<strong>Review before using this draft.</strong>
-									{rendered.missing_required.length > 0 && <p>Details still needed: {rendered.missing_required.join(', ')}.</p>}
-									{rendered.missing_variables.length > 0 && <p>Unfilled template variables: {rendered.missing_variables.slice(0, 6).join(', ')}{rendered.missing_variables.length > 6 ? `, and ${rendered.missing_variables.length - 6} more` : ''}.</p>}
-									{rendered.missing_companions.length > 0 && <p>The source terms refer to companion documents not included in this catalog: {rendered.missing_companions.join(', ')}. They are not generated here.</p>}
+									{rendered.missing_required.length > 0 && (
+										<p>
+											Details still needed:{' '}
+											{rendered.missing_required.join(', ')}.
+										</p>
+									)}
+									{rendered.missing_variables.length > 0 && (
+										<p>
+											Unfilled template variables:{' '}
+											{rendered.missing_variables.slice(0, 6).join(', ')}
+											{rendered.missing_variables.length > 6
+												? `, and ${rendered.missing_variables.length - 6} more`
+												: ''}
+											.
+										</p>
+									)}
+									{rendered.missing_companions.length > 0 && (
+										<p>
+											The source terms refer to companion documents not included
+											in this catalog: {rendered.missing_companions.join(', ')}.
+											They are not generated here.
+										</p>
+									)}
 								</div>
 							)}
-							<div className='rendered-document' dangerouslySetInnerHTML={{__html: rendered.html}} />
-							<button className='download-button' type='button' onClick={() => downloadDocumentPdf(rendered.title, rendered.text)}>
+							<div
+								className='rendered-document'
+								dangerouslySetInnerHTML={{__html: rendered.html}}
+							/>
+							<button
+								className='download-button'
+								type='button'
+								onClick={() =>
+									downloadDocumentPdf(rendered.title, rendered.text)
+								}>
 								Download PDF <Download size={16} />
 							</button>
 						</>
 					) : (
 						<div className='empty-draft'>
 							<FileText size={28} />
-							<p>Describe your NDA and the assistant will update this template-based draft as it gathers details.</p>
+							<p>
+								Describe your NDA and the assistant will update this
+								template-based draft as it gathers details.
+							</p>
 						</div>
 					)}
 				</aside>
@@ -241,7 +363,10 @@ export default function Workspace() {
 
 			<footer className='site-footer'>
 				<span>PRELEGAL · TOOLS FOR BETTER AGREEMENTS</span>
-				<span className='disclaimer'>A starting point, not legal advice. Have an attorney review generated drafts.</span>
+				<span className='disclaimer'>
+					A starting point, not legal advice. Have an attorney review generated
+					drafts.
+				</span>
 			</footer>
 		</main>
 	);
