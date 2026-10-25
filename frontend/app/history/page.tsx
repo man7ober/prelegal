@@ -13,7 +13,9 @@ type SavedDocument = {
 };
 
 function formatDate(value: string) {
-	return new Intl.DateTimeFormat('en-US', {dateStyle: 'medium'}).format(new Date(value));
+	return new Intl.DateTimeFormat('en-US', {dateStyle: 'medium'}).format(
+		new Date(value),
+	);
 }
 
 export default function HistoryPage() {
@@ -33,27 +35,37 @@ export default function HistoryPage() {
 					router.replace('/');
 					return;
 				}
-				if (!sessionResponse.ok) throw new Error('Your account could not be loaded.');
+				if (!sessionResponse.ok)
+					throw new Error('Your account could not be loaded.');
 				const session = await sessionResponse.json();
 				const documentsResponse = await fetch('/api/documents');
 				if (documentsResponse.status === 401) {
 					router.replace('/');
 					return;
 				}
-				if (!documentsResponse.ok) throw new Error('Your saved documents could not be loaded.');
-				const savedDocuments = (await documentsResponse.json()) as SavedDocument[];
+				if (!documentsResponse.ok)
+					throw new Error('Your saved documents could not be loaded.');
+				const savedDocuments =
+					(await documentsResponse.json()) as SavedDocument[];
 				if (!ignore) {
 					setEmail(session.email);
 					setDocuments(savedDocuments);
 				}
 			} catch (loadError) {
-				if (!ignore) setError(loadError instanceof Error ? loadError.message : 'Could not load your documents.');
+				if (!ignore)
+					setError(
+						loadError instanceof Error
+							? loadError.message
+							: 'Could not load your documents.',
+					);
 			} finally {
 				if (!ignore) setLoading(false);
 			}
 		}
 		void loadHistory();
-		return () => { ignore = true; };
+		return () => {
+			ignore = true;
+		};
 	}, [router]);
 
 	async function signOut() {
@@ -69,13 +81,22 @@ export default function HistoryPage() {
 	return (
 		<main className='app-shell account-shell'>
 			<header className='topbar'>
-				<Link className='brand' href='/history' aria-label='Prelegal home'>
-					<span className='brand-mark'><FileText size={17} /></span>
-					<span>prelegal<span className='brand-period'>.</span></span>
+				<Link
+					className='brand'
+					href='/history'
+					aria-label='Prelegal home'>
+					<span className='brand-mark'>
+						<FileText size={17} />
+					</span>
+					<span>
+						prelegal<span className='brand-period'>.</span>
+					</span>
 				</Link>
-				<div className='account-actions'>
+				<div className='workspace-account'>
 					<span>{email}</span>
-					<button type='button' onClick={signOut} disabled={busy}>
+					<button
+						type='button'
+						onClick={signOut}>
 						<LogOut size={14} /> Sign out
 					</button>
 				</div>
@@ -87,12 +108,16 @@ export default function HistoryPage() {
 					<h1>Saved NDA drafts</h1>
 					<p>Return to a saved draft or start a new Mutual NDA.</p>
 				</div>
-				<Link className='new-document-button' href='/workspace'>
+				<Link
+					className='new-document-button'
+					href='/workspace'>
 					<Plus size={16} /> New Mutual NDA
 				</Link>
 			</section>
 
-			<section className='history-panel' aria-labelledby='documents-heading'>
+			<section
+				className='history-panel'
+				aria-labelledby='documents-heading'>
 				<div className='history-panel-heading'>
 					<div>
 						<span className='section-kicker'>DOCUMENT HISTORY</span>
@@ -101,26 +126,44 @@ export default function HistoryPage() {
 					<span className='history-count'>{documents.length}</span>
 				</div>
 
-				{error && <p className='download-error' role='alert'>{error}</p>}
+				{error && (
+					<p
+						className='download-error'
+						role='alert'>
+						{error}
+					</p>
+				)}
 				{loading ? (
-					<p className='history-status' role='status'>Loading your documents…</p>
+					<p
+						className='history-status'
+						role='status'>
+						Loading your documents…
+					</p>
 				) : documents.length === 0 ? (
 					<div className='history-empty'>
 						<FileText size={28} />
 						<strong>No saved drafts yet</strong>
-						<p>Your drafts will appear here when you choose Save in the NDA workspace.</p>
-						<Link href='/workspace'>Start a Mutual NDA <ArrowRight size={14} /></Link>
+						<p>
+							Your drafts will appear here when you choose Save in the NDA
+							workspace.
+						</p>
+						<Link href='/workspace'>
+							Start a Mutual NDA <ArrowRight size={14} />
+						</Link>
 					</div>
 				) : (
 					<ul className='history-list'>
 						{documents.map((document) => (
 							<li key={document.id}>
-								<div className='history-document-icon'><FileText size={18} /></div>
+								<div className='history-document-icon'>
+									<FileText size={18} />
+								</div>
 								<div className='history-document-details'>
 									<strong>{document.title}</strong>
 									<span>Updated {formatDate(document.updated_at)}</span>
 								</div>
-								<Link href={`/workspace?document_id=${encodeURIComponent(document.id)}`}>
+								<Link
+									href={`/workspace?document_id=${encodeURIComponent(document.id)}`}>
 									Open draft <ArrowRight size={14} />
 								</Link>
 							</li>
@@ -131,7 +174,9 @@ export default function HistoryPage() {
 
 			<footer className='site-footer'>
 				<span>PRELEGAL · TOOLS FOR BETTER AGREEMENTS</span>
-				<span className='disclaimer'>Draft only—not legal advice. Have an attorney review before signing.</span>
+				<span className='disclaimer'>
+					Draft only—not legal advice. Have an attorney review before signing.
+				</span>
 			</footer>
 		</main>
 	);
