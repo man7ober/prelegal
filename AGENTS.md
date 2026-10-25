@@ -6,7 +6,7 @@ This project is intended to become a SaaS product for drafting legal agreements 
 
 @catalog.json
 
-The current `main` branch provides an NDA-only AI chat workflow; other catalog templates remain in the repository but are not exposed by its chat or rendering APIs. Real authentication and document persistence are not implemented. See **Project status** below for scope.
+The current `main` branch provides a multi-user, NDA-only AI chat workflow with account sign-up/sign-in and per-user saved drafts; other catalog templates remain in the repository but are not exposed by its chat or rendering APIs. Accounts and drafts live in a temporary SQLite database that resets on backend restart. See **Project status** below for scope.
 
 ## Development process
 
@@ -27,7 +27,7 @@ When implementing LLM calls, use OpenRouter with the `nvidia/nemotron-3-ultra-55
 
 Package the frontend and backend as separate Docker services orchestrated by root-level Docker Compose.
 The backend is a `uv` project using FastAPI; the frontend is in `frontend/` and uses Next.js.
-Use SQLite for the temporary backend database. It is initialized at backend startup, stored only in the container (no persistent volume), and currently has no application tables. Authentication and user storage are not implemented.
+Use SQLite for the temporary backend database. It is deleted and re-initialized at backend startup, stored only in the container (no persistent volume), and holds `users` and `documents` tables for accounts and saved NDA drafts. Sign-up/sign-in uses email/password with Argon2 hashing and an HTTP-only signed session cookie (`SESSION_SECRET_KEY`, `COOKIE_SECURE`).
 
 ```bash
 docker compose up -d --build    # Build
@@ -63,3 +63,14 @@ Frontend available at http://localhost:3000; backend available at http://localho
 - The feature branch limits the chat and rendering APIs to Mutual NDA; other template files remain available for future work.
 - Freeform chat collects NDA details and refreshes the document preview after assistant responses.
 - The KAN-9 changes are merged to `main`.
+
+### KAN-10 — Support multiple users & final polish (Done; merged in PR #8)
+
+- `/` is a real sign-up/sign-in screen (email/password, Argon2 hashing via pwdlib, signed HTTP-only session cookie). No email verification or reset, per ticket scope.
+- New `/history` screen lists each user's saved drafts and reopens them at `/workspace?document_id=…` into a fresh chat seeded with the saved fields.
+- The workspace has an explicit Save button (`POST /api/documents` for new drafts, `PUT /api/documents/{id}` when editing); saved data is structured NDA fields + metadata only, never chat transcripts.
+- The template catalog moved to the protected `GET /api/templates` endpoint; the Mutual-NDA-only allowlist from KAN-9 is unchanged.
+- The SQLite database (users + documents) is deleted and re-created at backend startup, so accounts and drafts reset on restart.
+- The required disclaimer "Draft only—not legal advice. Have an attorney review before signing." appears in the workspace footer and is appended to exported PDFs.
+- Fixed the root `.gitignore` `lib/` rule that had silently excluded `frontend/lib/` (`nda.ts`, `pdf.ts` were never committed).
+- The KAN-10 changes are merged to `main` (PR #8).
