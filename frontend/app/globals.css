@@ -693,25 +693,10 @@ body {
 	border: 1px solid var(--line);
 	border-radius: 7px;
 }
-.template-picker label,
-.template-picker select {
+.template-picker strong {
 	display: block;
-	width: 100%;
-}
-.template-picker label {
-	margin-bottom: 7px;
-	color: var(--muted);
-	font-size: 10px;
-	font-weight: 600;
-}
-.template-picker select {
-	min-height: 38px;
-	border: 1px solid #e3e5de;
-	border-radius: 5px;
-	background: #fffefa;
-	padding: 0 10px;
 	color: var(--ink);
-	font: 12px var(--sans);
+	font-size: 12px;
 }
 .template-picker p {
 	margin: 8px 0 0;
@@ -735,8 +720,7 @@ body {
 	color: var(--ink);
 	font: 12px/1.5 var(--sans);
 }
-.chat-form textarea:focus,
-.template-picker select:focus {
+.chat-form textarea:focus {
 	outline: 3px solid #e9f0e9;
 	border-color: #7d9d85;
 }
@@ -760,8 +744,7 @@ body {
 	accent-color: var(--green);
 	flex: none;
 }
-.send-button,
-.review-button {
+.send-button {
 	min-height: 38px;
 	border: 0;
 	border-radius: 5px;
@@ -776,8 +759,7 @@ body {
 	cursor: pointer;
 	white-space: nowrap;
 }
-.send-button:disabled,
-.review-button:disabled {
+.send-button:disabled {
 	background: #aab6aa;
 	cursor: not-allowed;
 }
@@ -819,14 +801,6 @@ body {
 .draft-heading h2 {
 	font-size: 19px;
 }
-.review-button {
-	background: #edf2e8;
-	color: var(--green-dark);
-}
-.review-button:disabled {
-	background: #e6e8e1;
-	color: #848b83;
-}
 .draft-warning strong {
 	display: block;
 	margin-bottom: 4px;
@@ -849,15 +823,19 @@ body {
 .rendered-document h1,
 .rendered-document h2,
 .rendered-document h3,
-.rendered-document h4 {
+.rendered-document h4,
+.rendered-document h5,
+.rendered-document h6 {
 	color: #26372d;
 	font-family: var(--sans);
 	line-height: 1.3;
 }
-.rendered-document h1 { font-size: 19px; }
-.rendered-document h2 { font-size: 15px; }
-.rendered-document h3,
-.rendered-document h4 { font-size: 12px; }
+.rendered-document h1,
+.rendered-document h2 { font-size: 17px; }
+.rendered-document h3 { font-size: 14px; }
+.rendered-document h4,
+.rendered-document h5,
+.rendered-document h6 { font-size: 12px; }
 .rendered-document table {
 	width: 100%;
 	border-collapse: collapse;

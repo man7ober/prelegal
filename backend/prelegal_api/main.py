@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from .documents import DocumentLibrary
 from .openrouter import OpenRouterError, request_intake
+from .schemas import SUPPORTED_CHAT_DOCUMENT_IDS
 
 
 def initialize_database() -> None:
@@ -56,7 +57,11 @@ class RenderRequest(BaseModel):
 
 @app.get("/api/documents")
 def list_documents() -> list[dict]:
-    return documents.list_documents()
+    return [
+        document
+        for document in documents.list_documents()
+        if document["id"] in SUPPORTED_CHAT_DOCUMENT_IDS
+    ]
 
 
 @app.post("/api/chat")
@@ -65,10 +70,13 @@ async def chat(request: ChatRequest) -> dict:
         raise HTTPException(status_code=400, detail="Consent is required before sending messages to the AI service.")
     if not any(message.role == "user" for message in request.messages):
         raise HTTPException(status_code=422, detail="At least one user message is required.")
-    if request.document_id and request.document_id not in documents.by_id:
+    if request.document_id and request.document_id not in SUPPORTED_CHAT_DOCUMENT_IDS:
         raise HTTPException(status_code=404, detail="The selected agreement is not supported.")
 
     context = documents.chat_context(request.document_id)
+    context["catalog"] = [
+        item for item in context["catalog"] if item["id"] in SUPPORTED_CHAT_DOCUMENT_IDS
+    ]
     if request.document_id:
         field_ids = {field["id"] for field in context["selected_document"]["fields"]}
         unknown_fields = set(request.field_values) - field_ids
@@ -86,7 +94,7 @@ async def chat(request: ChatRequest) -> dict:
         raise HTTPException(status_code=503, detail=str(error)) from error
 
     result_document_id = result.get("document_id")
-    if result_document_id not in documents.by_id:
+    if result_document_id not in SUPPORTED_CHAT_DOCUMENT_IDS:
         result_document_id = request.document_id
     if result_document_id:
         field_ids = {
@@ -117,7 +125,7 @@ async def chat(request: ChatRequest) -> dict:
             "document_id": result_document_id,
             "message": message,
             "suggested_document_id": result.get("suggested_document_id")
-            if result.get("suggested_document_id") in documents.by_id
+            if result.get("suggested_document_id") in SUPPORTED_CHAT_DOCUMENT_IDS
             else None,
             "field_values": values,
             "required_missing": sorted(required_missing),
@@ -128,7 +136,7 @@ async def chat(request: ChatRequest) -> dict:
         "action": "unsupported" if result.get("action") == "unsupported" else "ask",
         "document_id": None,
         "message": result.get("message", "Tell me a little more about the agreement you need."),
-        "suggested_document_id": suggestion if suggestion in documents.by_id else None,
+        "suggested_document_id": suggestion if suggestion in SUPPORTED_CHAT_DOCUMENT_IDS else None,
         "field_values": {},
         "required_missing": [],
     }
@@ -136,7 +144,7 @@ async def chat(request: ChatRequest) -> dict:
 
 @app.post("/api/documents/{document_id}/render")
 def render_document(document_id: str, request: RenderRequest) -> dict:
-    if document_id not in documents.by_id:
+    if document_id not in SUPPORTED_CHAT_DOCUMENT_IDS:
         raise HTTPException(status_code=404, detail="The selected agreement is not supported.")
     field_ids = {
         field["id"] for field in documents.chat_context(document_id)["selected_document"]["fields"]

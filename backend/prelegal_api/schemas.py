@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 
 
+# KAN-9 intentionally limits the current chat and render API to Mutual NDA.
+# Other schemas and source templates remain available for future issues.
+SUPPORTED_CHAT_DOCUMENT_IDS = frozenset({"mutual-nda"})
+
+
 @dataclass(frozen=True)
 class DocumentConfig:
     document_id: str

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from prelegal_api.documents import DocumentLibrary
@@ -38,6 +39,13 @@ def test_renderer_escapes_user_values_before_inserting_html() -> None:
 
     assert "<script>" not in rendered["html"]
     assert "&lt;script&gt;" in rendered["html"]
+
+
+def test_nda_signature_table_empty_header_has_accessible_name() -> None:
+    rendered = library().render("mutual-nda", {})
+
+    assert re.search(r'<th[^>]*aria-label="Agreement field"', rendered["html"])
+    assert "<h1>Mutual Non-Disclosure Agreement</h1>" not in rendered["html"]
 
 
 def test_every_schema_required_field_exists_in_template_registry() -> None:

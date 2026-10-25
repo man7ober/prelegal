@@ -188,6 +188,20 @@ class DocumentLibrary:
 
         unresolved = [field for field in fields if field["required"] and field["id"] not in safe_values]
         rendered_html = markdown.markdown(source, extensions=["tables", "sane_lists"])
+        rendered_html = re.sub(
+            r"<h([1-5])([^>]*)>(.*?)</h\1>",
+            lambda match: (
+                f"<h{int(match.group(1)) + 1}{match.group(2)}>{match.group(3)}"
+                f"</h{int(match.group(1)) + 1}>"
+            ),
+            rendered_html,
+            flags=re.DOTALL,
+        )
+        rendered_html = re.sub(
+            r"<th([^>]*)>\s*</th>",
+            lambda match: f'<th{match.group(1)} aria-label="Agreement field"></th>',
+            rendered_html,
+        )
         text_extractor = _TextExtractor()
         text_extractor.feed(rendered_html)
         return {
